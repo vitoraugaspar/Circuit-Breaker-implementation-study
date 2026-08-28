@@ -7,6 +7,7 @@ import java.time.LocalTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CircuitBreaker {
     public CircuitBreaker(Short newLimit){
@@ -15,10 +16,9 @@ public class CircuitBreaker {
         }
 
     }
-    State state = State.CLOSED;
-    short limitPermittedForFailTransactions = 8;
-    short transactionsFailed = 0;
-    LocalTime timeStamp;
+    private volatile State state = State.CLOSED;
+    private short limitPermittedForFailTransactions = 8;
+    private AtomicInteger transactionsFailed = new AtomicInteger(0);
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -36,13 +36,7 @@ public class CircuitBreaker {
                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                    if(response.statusCode() >=400){
-                       transactionsFailed++;
-                       if (transactionsFailed >= limitPermittedForFailTransactions){
-                           state = State.OPEN;
-                           transactionsFailed = 0;
-                           Runnable runnable = () -> setState(State.HALF_OPEN);
-                           executor.schedule(runnable, 30, TimeUnit.SECONDS);
-                       }
+                       isNeededChangingStateToOpen();
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
@@ -50,13 +44,7 @@ public class CircuitBreaker {
                    if (e instanceof InterruptedException) {
                        Thread.currentThread().interrupt();
                    }
-                   transactionsFailed++;
-                   if (transactionsFailed >= limitPermittedForFailTransactions) {
-                       state = State.OPEN;
-                       transactionsFailed = 0;
-                       Runnable runnable = () -> setState(State.HALF_OPEN);
-                       executor.schedule(runnable, 30, TimeUnit.SECONDS);
-                   }
+                   isNeededChangingStateToOpen();
                    throw new RuntimeException("Requisição falhou");
                }
            }
@@ -75,5 +63,15 @@ public class CircuitBreaker {
     public void setState(State state){
         this.state = state;
     }
+
+    public void isNeededChangingStateToOpen(){
+        int failures = transactionsFailed.incrementAndGet();
+        if (failures >= limitPermittedForFailTransactions){
+            state = State.OPEN;
+            transactionsFailed.set(0);
+            Runnable runnable = () -> setState(State.HALF_OPEN);
+            executor.schedule(runnable, 30, TimeUnit.SECONDS);
+        }
+       }
     }
 
