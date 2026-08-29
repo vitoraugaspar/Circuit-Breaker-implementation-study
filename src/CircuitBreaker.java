@@ -3,11 +3,12 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.time.LocalTime;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class CircuitBreaker {
     public CircuitBreaker(Short newLimit){
@@ -18,7 +19,9 @@ public class CircuitBreaker {
     }
     private volatile State state = State.CLOSED;
     private short limitPermittedForFailTransactions = 8;
-    private AtomicInteger transactionsFailed = new AtomicInteger(0);
+    private final AtomicInteger transactionsFailed = new AtomicInteger(0);
+    private final AtomicReference<HttpRequest> requestSavedForTestingService = new AtomicReference<>();
+    private final AtomicBoolean alreadyTested = new AtomicBoolean(false);
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -26,12 +29,12 @@ public class CircuitBreaker {
 
        public void calls(String uri, String body){
            if(getState() == State.CLOSED){
-                   HttpRequest request = HttpRequest.newBuilder()
-                           .uri(URI.create(uri))
-                           .header("Accept", "application/json")
-                           .timeout(Duration.ofSeconds(5))
-                           .POST(HttpRequest.BodyPublishers.ofString(body))
-                           .build();
+               HttpRequest request = HttpRequest.newBuilder()
+                       .uri(URI.create(uri))
+                       .header("Accept", "application/json")
+                       .timeout(Duration.ofSeconds(5))
+                       .POST(HttpRequest.BodyPublishers.ofString(body))
+                       .build();
                try {
                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -40,7 +43,8 @@ public class CircuitBreaker {
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
-               } catch (java.io.IOException | InterruptedException e) {
+               }
+               catch (java.io.IOException | InterruptedException e) {
                    if (e instanceof InterruptedException) {
                        Thread.currentThread().interrupt();
                    }
@@ -50,7 +54,48 @@ public class CircuitBreaker {
            }
 
            if(getState() == State.HALF_OPEN){
+               HttpRequest request = requestSavedForTestingService.get();
+               if(!alreadyTested.compareAndSet(false, true)){
+                   throw new RuntimeException("Serviço indisponível");
+               }
+               if(request == null ){
+                   HttpRequest    newRequest = HttpRequest.newBuilder()
+                           .uri(URI.create(uri))
+                           .header("Accept", "application/json")
+                           .timeout(Duration.ofSeconds(5))
+                           .POST(HttpRequest.BodyPublishers.ofString(body))
+                           .build();
+                   request = requestSavedForTestingService.compareAndSet(null, newRequest) ? newRequest : requestSavedForTestingService.get();
+               }
+               try {
+                   HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
+                   if(response.statusCode() >=400){
+                       state = State.OPEN;
+                       Runnable runnable = () -> setState(State.HALF_OPEN);
+                       executor.schedule(runnable, 30, TimeUnit.SECONDS);
+                       requestSavedForTestingService.set(null);
+                       alreadyTested.set(false);
+                       throw new RuntimeException("Erro ao mandar a requisição");
+                   } else {
+                       state = State.CLOSED;
+                       alreadyTested.set(false);
+                       Runnable runnable = () -> requestSavedForTestingService.set(null);
+                       executor.schedule(runnable, 10, TimeUnit.SECONDS);
+                   }
+
+               }
+               catch (java.io.IOException | InterruptedException e) {
+                   if (e instanceof InterruptedException) {
+                       Thread.currentThread().interrupt();
+                   }
+                   state = State.OPEN;
+                   alreadyTested.set(false);
+                   requestSavedForTestingService.set(null);
+                   Runnable runnable = () -> setState(State.HALF_OPEN);
+                   executor.schedule(runnable, 30, TimeUnit.SECONDS);
+                   throw new RuntimeException("Requisição falhou");
+               }
            }
            if(getState() == State.OPEN){
                throw new RuntimeException("Requisição falhou");
@@ -60,18 +105,18 @@ public class CircuitBreaker {
             return state;
         }
 
-    public void setState(State state){
-        this.state = state;
-    }
-
-    public void isNeededChangingStateToOpen(){
-        int failures = transactionsFailed.incrementAndGet();
-        if (failures >= limitPermittedForFailTransactions){
-            state = State.OPEN;
-            transactionsFailed.set(0);
-            Runnable runnable = () -> setState(State.HALF_OPEN);
-            executor.schedule(runnable, 30, TimeUnit.SECONDS);
+        public void setState(State state){
+            this.state = state;
         }
-       }
+
+        public void isNeededChangingStateToOpen(){
+            int failures = transactionsFailed.incrementAndGet();
+            if (failures >= limitPermittedForFailTransactions){
+                state = State.OPEN;
+                transactionsFailed.set(0);
+                Runnable runnable = () -> setState(State.HALF_OPEN);
+                executor.schedule(runnable, 30, TimeUnit.SECONDS);
+            }
+        }
     }
 
