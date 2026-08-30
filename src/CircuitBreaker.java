@@ -12,9 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class CircuitBreaker {
     public CircuitBreaker(Short newLimit){
-        if(newLimit != null){
-            limitPermittedForFailTransactions = newLimit;
-        }
+        setLimitPermittedForFailTransactions(newLimit);
 
     }
     private volatile State state = State.CLOSED;
@@ -71,29 +69,20 @@ public class CircuitBreaker {
                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                    if(response.statusCode() >=400){
-                       state = State.OPEN;
-                       Runnable runnable = () -> setState(State.HALF_OPEN);
-                       executor.schedule(runnable, 30, TimeUnit.SECONDS);
-                       requestSavedForTestingService.set(null);
-                       alreadyTested.set(false);
+                       setStateToHalfOpenMode();
                        throw new RuntimeException("Erro ao mandar a requisição");
-                   } else {
-                       state = State.CLOSED;
-                       alreadyTested.set(false);
-                       Runnable runnable = () -> requestSavedForTestingService.set(null);
-                       executor.schedule(runnable, 10, TimeUnit.SECONDS);
                    }
+
+                   this.state = State.CLOSED;
+                   this.alreadyTested.set(false);
+                   this.requestSavedForTestingService.set(null);
 
                }
                catch (java.io.IOException | InterruptedException e) {
                    if (e instanceof InterruptedException) {
                        Thread.currentThread().interrupt();
                    }
-                   state = State.OPEN;
-                   alreadyTested.set(false);
-                   requestSavedForTestingService.set(null);
-                   Runnable runnable = () -> setState(State.HALF_OPEN);
-                   executor.schedule(runnable, 30, TimeUnit.SECONDS);
+                   setStateToHalfOpenMode();
                    throw new RuntimeException("Requisição falhou");
                }
            }
@@ -102,21 +91,35 @@ public class CircuitBreaker {
            }
        }
         public State getState() {
-            return state;
+            return this.state;
         }
 
         public void setState(State state){
             this.state = state;
         }
 
+        public void setLimitPermittedForFailTransactions(Short newLimit) {
+            if (newLimit != null) {
+                this.limitPermittedForFailTransactions = newLimit;
+            }
+        }
+
         public void isNeededChangingStateToOpen(){
             int failures = transactionsFailed.incrementAndGet();
             if (failures >= limitPermittedForFailTransactions){
-                state = State.OPEN;
-                transactionsFailed.set(0);
+                this.state = State.OPEN;
+                this.transactionsFailed.set(0);
                 Runnable runnable = () -> setState(State.HALF_OPEN);
                 executor.schedule(runnable, 30, TimeUnit.SECONDS);
             }
+        }
+
+        public void setStateToHalfOpenMode(){
+            this.state = State.OPEN;
+            this.alreadyTested.set(false);
+            this.requestSavedForTestingService.set(null);
+            Runnable runnable = () -> setState(State.HALF_OPEN);
+            executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
     }
 
