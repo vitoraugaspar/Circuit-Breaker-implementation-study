@@ -69,7 +69,7 @@ public class CircuitBreaker {
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
-                   setStateToOpenMode();
+                   setStateToClosedMode();
 
                }
                catch (java.io.IOException | InterruptedException e) {
@@ -116,7 +116,7 @@ public class CircuitBreaker {
             executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
 
-        public void setStateToOpenMode(){
+        public void setStateToClosedMode(){
             this.state = State.CLOSED;
             this.alreadyTested.set(false);
             this.requestSavedForTestingService.set(null);
