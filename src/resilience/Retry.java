@@ -1,5 +1,4 @@
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+package resilience;
 
 public class Retry {
     Integer tries = 2;
@@ -7,8 +6,12 @@ public class Retry {
     Integer multiplyTransactionsDelayBy = 2;
     int newDelayTimeInMilliSeconds;
 
+    private CircuitBreaker circuitBreaker;
+    public Retry(CircuitBreaker circuitBreaker){
+        this.circuitBreaker = circuitBreaker;
+    }
 
-    public void retry(Integer tries, Integer periodOfTImeInMilliSeconds, Integer multiplyTransactionsDelayBy){
+    public void call(Integer tries, Integer periodOfTImeInMilliSeconds, Integer multiplyTransactionsDelayBy){
         if (tries != null){
             this.tries = tries;
         }
@@ -19,10 +22,10 @@ public class Retry {
             this.multiplyTransactionsDelayBy = multiplyTransactionsDelayBy;
         }
 
-        for (int counter = 1; counter <= tries; counter++){
+        for (int counter = 1; counter <= this.tries; counter++){
             try {
                 System.out.println("Oi" + newDelayTimeInMilliSeconds);
-                newDelayTimeInMilliSeconds = (int) Math.pow(multiplyTransactionsDelayBy ,counter - 1) * periodOfTImeInMilliSeconds;;
+                newDelayTimeInMilliSeconds = (int) Math.pow(this.multiplyTransactionsDelayBy ,counter - 1) * periodOfTImeInMilliSeconds;;
                 Thread.sleep(newDelayTimeInMilliSeconds);
             }
             catch (InterruptedException e) {

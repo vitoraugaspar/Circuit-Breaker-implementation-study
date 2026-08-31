@@ -1,17 +1,19 @@
-import java.sql.Time;
+package resilience;
+
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.temporal.TemporalUnit;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RateLimit {
     private AtomicInteger transactionsSended = new AtomicInteger(0);
     private int transactionsLimit = 100;
     private int timeDurationInSeconds = 60;
-    Instant timeStamp;
+    private Instant timeStamp;
+    private CircuitBreaker circuitBreaker;
+    public RateLimit(CircuitBreaker circuitBreaker){
+        this.circuitBreaker = circuitBreaker;
+    }
 
-    public void rateLimit(Integer transactionsLimit, Integer timeDurationInSeconds){
+    public void call(Integer transactionsLimit, Integer timeDurationInSeconds){
         if(transactionsLimit != null){
             this.transactionsLimit = transactionsLimit;
         }
@@ -19,12 +21,12 @@ public class RateLimit {
             this.timeDurationInSeconds = timeDurationInSeconds;
         }
         if (timeStamp == null){
-            timeStamp = Instant.now();
+            this.timeStamp = Instant.now();
         }
         Instant currentTime = Instant.now();
-        if (currentTime.isAfter(timeStamp.plusSeconds(timeDurationInSeconds))){
-            transactionsSended.set(0);
-            timeStamp = currentTime;;
+        if (currentTime.isAfter(timeStamp.plusSeconds(this.timeDurationInSeconds))){
+            this.transactionsSended.set(0);
+            this.timeStamp = currentTime;;
         }
         int transactionsCount = transactionsSended.incrementAndGet();
         if (transactionsCount >= this.transactionsLimit){

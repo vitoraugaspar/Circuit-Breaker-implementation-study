@@ -1,3 +1,9 @@
+package resilience;
+
+import adapters.HttpRequestAdapter;
+import contracts.ICircuitBreaker;
+import contracts.State;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -11,11 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CircuitBreaker {
-    public CircuitBreaker(Short newLimit){
-        setLimitPermittedForFailTransactions(newLimit);
-
-    }
+public class CircuitBreaker implements ICircuitBreaker {
     private volatile State state = State.CLOSED;
     private short limitPermittedForFailTransactions = 8;
     private final short[] transactionsRegistered = new short[limitPermittedForFailTransactions];
@@ -25,15 +27,23 @@ public class CircuitBreaker {
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
+    public CircuitBreaker(Short newLimit){
+        if (newLimit != null) {
+            this.limitPermittedForFailTransactions = newLimit;
+        }
+    }
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
-    private final HttpCallAdapter httpCallAdapter = new HttpCallAdapter();
-       public void calls(String uri, String body) throws IOException, InterruptedException {
+    private final HttpRequestAdapter httpCallAdapter = new HttpRequestAdapter();
+       public void call(String uri, String body) throws IOException, InterruptedException {
            if(getState() == State.CLOSED){
                try {
                    HttpResponse<String> response = httpCallAdapter.get(uri);
                    if(response.statusCode() >=400){
-                       isNeededChangingStateToOpen();
+                       int failures = transactionsFailed.incrementAndGet();
+                       if (failures >= limitPermittedForFailTransactions){
+                           setStateToOpenMode();
+                       }
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
@@ -42,7 +52,10 @@ public class CircuitBreaker {
                    if (e instanceof InterruptedException) {
                        Thread.currentThread().interrupt();
                    }
-                   isNeededChangingStateToOpen();
+                   int failures = transactionsFailed.incrementAndGet();
+                   if (failures >= limitPermittedForFailTransactions){
+                       setStateToOpenMode();
+                   }
                    throw new RuntimeException("Requisição falhou");
                }
            }
@@ -65,7 +78,7 @@ public class CircuitBreaker {
                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                    if(response.statusCode() >=400){
-                       setStateToHalfOpenMode();
+                       setStateToOpenModeFromHalfMode();
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
@@ -76,7 +89,7 @@ public class CircuitBreaker {
                    if (e instanceof InterruptedException) {
                        Thread.currentThread().interrupt();
                    }
-                   setStateToHalfOpenMode();
+                   setStateToOpenModeFromHalfMode();
                    throw new RuntimeException("Requisição falhou");
                }
            }
@@ -84,32 +97,23 @@ public class CircuitBreaker {
                throw new RuntimeException("Requisição falhou");
            }
        }
-        public State getState() {
+        private State getState() {
             return this.state;
         }
 
-        public void setState(State state){
+        private void setState(State state){
             this.state = state;
         }
 
-        public void setLimitPermittedForFailTransactions(Short newLimit) {
-            if (newLimit != null) {
-                this.limitPermittedForFailTransactions = newLimit;
-            }
-        }
-
-        public void isNeededChangingStateToOpen(){
-            int failures = transactionsFailed.incrementAndGet();
-            if (failures >= limitPermittedForFailTransactions){
-                this.state = State.OPEN;
+        private void setStateToOpenMode(){
+                setState(State.OPEN);
                 this.transactionsFailed.set(0);
                 Runnable runnable = () -> setState(State.HALF_OPEN);
                 executor.schedule(runnable, 30, TimeUnit.SECONDS);
-            }
         }
 
-        public void setStateToHalfOpenMode(){
-            this.state = State.OPEN;
+        private void setStateToOpenModeFromHalfMode(){
+            setState(State.OPEN);
             this.alreadyTested.set(false);
             this.requestSavedForTestingService.set(null);
             Runnable runnable = () -> setState(State.HALF_OPEN);
@@ -117,7 +121,7 @@ public class CircuitBreaker {
         }
 
         public void setStateToClosedMode(){
-            this.state = State.CLOSED;
+            setState(State.CLOSED);
             this.alreadyTested.set(false);
             this.requestSavedForTestingService.set(null);
     }

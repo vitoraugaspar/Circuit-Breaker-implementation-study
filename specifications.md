@@ -1,5 +1,5 @@
 **Especificações**
-- CircuitBreaker por natureza está fechado [x]
+- resilience.CircuitBreaker por natureza está fechado [x]
 - Passa transações no estado fechado até atingir o limite permitido [x]
 - Quando atingido, entra em open por 30s [x]
 - Depois desse tempo, vai para o estado half-open [x]
@@ -10,4 +10,4 @@
 - Implementear Rate Limite [x]
 - Implementar BulkHead []
 - Implementar Timeout [x]
-- Implementar Retry [x]
+- Implementar resilience.Retry [x]

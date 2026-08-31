@@ -1,3 +1,5 @@
+package contracts;
+
 import java.io.IOException;
 import java.net.http.HttpResponse;
 

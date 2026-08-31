@@ -1,3 +1,7 @@
+package adapters;
+
+import contracts.IHttpCallAdapter;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -5,8 +9,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-public class HttpCallAdapter implements IHttpCallAdapter {
-    public HttpCallAdapter(){
+public class HttpRequestAdapter implements IHttpCallAdapter {
+    public HttpRequestAdapter(){
 
     }
     private final HttpClient client = HttpClient.newBuilder()
