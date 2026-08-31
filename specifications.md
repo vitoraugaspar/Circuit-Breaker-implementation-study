@@ -7,3 +7,7 @@
 - Caso falhe, retorna para open [x]
 - Caso dê certo, vai para fechado [x]
 - As demais transacoes são ignoradas e devolvidas o status http de nao disponivel [x]
+- Implementear Rate Limite [x]
+- Implementar BulkHead []
+- Implementar Timeout [x]
+- Implementar Retry [x]

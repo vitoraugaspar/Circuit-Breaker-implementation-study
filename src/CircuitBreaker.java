@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,6 +18,7 @@ public class CircuitBreaker {
     }
     private volatile State state = State.CLOSED;
     private short limitPermittedForFailTransactions = 8;
+    private final short[] transactionsRegistered = new short[limitPermittedForFailTransactions];
     private final AtomicInteger transactionsFailed = new AtomicInteger(0);
     private final AtomicReference<HttpRequest> requestSavedForTestingService = new AtomicReference<>();
     private final AtomicBoolean alreadyTested = new AtomicBoolean(false);
@@ -25,17 +27,11 @@ public class CircuitBreaker {
             .build();
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
-       public void calls(String uri, String body){
+    private final HttpCallAdapter httpCallAdapter = new HttpCallAdapter();
+       public void calls(String uri, String body) throws IOException, InterruptedException {
            if(getState() == State.CLOSED){
-               HttpRequest request = HttpRequest.newBuilder()
-                       .uri(URI.create(uri))
-                       .header("Accept", "application/json")
-                       .timeout(Duration.ofSeconds(5))
-                       .POST(HttpRequest.BodyPublishers.ofString(body))
-                       .build();
                try {
-                   HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
+                   HttpResponse<String> response = httpCallAdapter.get(uri);
                    if(response.statusCode() >=400){
                        isNeededChangingStateToOpen();
                        throw new RuntimeException("Erro ao mandar a requisição");
@@ -57,7 +53,7 @@ public class CircuitBreaker {
                    throw new RuntimeException("Serviço indisponível");
                }
                if(request == null ){
-                   HttpRequest    newRequest = HttpRequest.newBuilder()
+                   HttpRequest newRequest = HttpRequest.newBuilder()
                            .uri(URI.create(uri))
                            .header("Accept", "application/json")
                            .timeout(Duration.ofSeconds(5))
@@ -73,9 +69,7 @@ public class CircuitBreaker {
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
 
-                   this.state = State.CLOSED;
-                   this.alreadyTested.set(false);
-                   this.requestSavedForTestingService.set(null);
+                   setStateToOpenMode();
 
                }
                catch (java.io.IOException | InterruptedException e) {
@@ -121,5 +115,11 @@ public class CircuitBreaker {
             Runnable runnable = () -> setState(State.HALF_OPEN);
             executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
+
+        public void setStateToOpenMode(){
+            this.state = State.CLOSED;
+            this.alreadyTested.set(false);
+            this.requestSavedForTestingService.set(null);
+    }
     }
 
