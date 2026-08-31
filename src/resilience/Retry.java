@@ -1,13 +1,15 @@
 package resilience;
 
+import contracts.IResilience;
+
 public class Retry {
     Integer tries = 2;
     Integer periodOfTImeInMilliSeconds = 1000;
     Integer multiplyTransactionsDelayBy = 2;
     int newDelayTimeInMilliSeconds;
 
-    private CircuitBreaker circuitBreaker;
-    public Retry(CircuitBreaker circuitBreaker){
+    private IResilience circuitBreaker;
+    public Retry(IResilience circuitBreaker){
         this.circuitBreaker = circuitBreaker;
     }
 

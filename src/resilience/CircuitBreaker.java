@@ -1,7 +1,7 @@
 package resilience;
 
-import adapters.HttpRequestAdapter;
-import contracts.ICircuitBreaker;
+import adapters.HttpRequestAdapterImpl;
+import contracts.IResilience;
 import contracts.State;
 
 import java.io.IOException;
@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CircuitBreaker implements ICircuitBreaker {
+public class CircuitBreaker implements IResilience {
     private volatile State state = State.CLOSED;
     private short limitPermittedForFailTransactions = 8;
     private final short[] transactionsRegistered = new short[limitPermittedForFailTransactions];
@@ -34,7 +34,7 @@ public class CircuitBreaker implements ICircuitBreaker {
     }
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
-    private final HttpRequestAdapter httpCallAdapter = new HttpRequestAdapter();
+    private final HttpRequestAdapterImpl httpCallAdapter = new HttpRequestAdapterImpl();
        public void call(String uri, String body) throws IOException, InterruptedException {
            if(getState() == State.CLOSED){
                try {

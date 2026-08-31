@@ -9,8 +9,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-public class HttpRequestAdapter implements IHttpCallAdapter {
-    public HttpRequestAdapter(){
+public class HttpRequestAdapterImpl implements IHttpCallAdapter {
+    public HttpRequestAdapterImpl(){
 
     }
     private final HttpClient client = HttpClient.newBuilder()

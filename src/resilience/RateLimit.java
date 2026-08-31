@@ -1,5 +1,7 @@
 package resilience;
 
+import contracts.IResilience;
+
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -8,8 +10,8 @@ public class RateLimit {
     private int transactionsLimit = 100;
     private int timeDurationInSeconds = 60;
     private Instant timeStamp;
-    private CircuitBreaker circuitBreaker;
-    public RateLimit(CircuitBreaker circuitBreaker){
+    private IResilience circuitBreaker;
+    public RateLimit(IResilience circuitBreaker){
         this.circuitBreaker = circuitBreaker;
     }
 

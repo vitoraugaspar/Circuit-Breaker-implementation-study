@@ -2,6 +2,6 @@ package contracts;
 
 import java.io.IOException;
 
-public interface ICircuitBreaker {
+public interface IResilience {
     void call(String uri, String body) throws IOException, InterruptedException;
 }
