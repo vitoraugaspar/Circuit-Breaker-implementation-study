@@ -1,8 +1,6 @@
 package resilience;
-
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
-
 import java.io.IOException;
 
 public class HttpCall implements IResilience {

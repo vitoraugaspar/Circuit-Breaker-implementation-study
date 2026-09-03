@@ -1,5 +1,4 @@
 package contracts;
-
 import java.io.IOException;
 
 public interface IResilience {

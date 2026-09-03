@@ -1,9 +1,7 @@
 package resilience;
-
 import adapters.HttpRequestAdapterImpl;
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,6 +13,7 @@ public class RateLimit implements IResilience{
     private Instant timeStamp;
     private IResilience resilienceService;
     private HttpRequestAdapterImpl httpCallAdapter;
+
     public RateLimit(Builder builder) {
         this.resilienceService = builder.resilienceService;
         this.transactionsLimit = builder.transactionsLimit;
@@ -52,6 +51,6 @@ public class RateLimit implements IResilience{
         if (transactionsCount > this.transactionsLimit){
             throw new RuntimeException("O limite de transações chegou. A chamada não será feita");
         }
-        resilienceService.call(httpRequestAdapter, uri, body);
+        //resilienceService.call(httpRequestAdapter, uri, body);
     }
 }

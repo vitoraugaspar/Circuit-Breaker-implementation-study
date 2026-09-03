@@ -1,10 +1,8 @@
 package resilience;
-
 import adapters.HttpRequestAdapterImpl;
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
 import contracts.State;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -39,7 +37,6 @@ public class CircuitBreaker implements IResilience {
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
        public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException {
            if(getState() == State.CLOSED){
-               try {
                    HttpResponse<String> response = httpCallAdapter.get(uri);
                    if(response.statusCode() >=400){
                        int failures = transactionsFailed.incrementAndGet();
@@ -50,18 +47,6 @@ public class CircuitBreaker implements IResilience {
                    }
 
                }
-               catch (java.io.IOException | InterruptedException e) {
-                   if (e instanceof InterruptedException) {
-                       Thread.currentThread().interrupt();
-                   }
-                   int failures = transactionsFailed.incrementAndGet();
-                   if (failures >= limitPermittedForFailTransactions){
-                       setStateToOpenMode();
-                   }
-                   throw new RuntimeException("Requisição falhou");
-               }
-           }
-
            if(getState() == State.HALF_OPEN){
                HttpRequest request = requestSavedForTestingService.get();
                if(!alreadyTested.compareAndSet(false, true)){
@@ -76,44 +61,32 @@ public class CircuitBreaker implements IResilience {
                            .build();
                    request = requestSavedForTestingService.compareAndSet(null, newRequest) ? newRequest : requestSavedForTestingService.get();
                }
-               try {
+
                    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
                    if(response.statusCode() >=400){
                        setStateToOpenModeFromHalfMode();
                        throw new RuntimeException("Erro ao mandar a requisição");
                    }
-
                    setStateToClosedMode();
-
-               }
-               catch (java.io.IOException | InterruptedException e) {
-                   if (e instanceof InterruptedException) {
-                       Thread.currentThread().interrupt();
-                   }
-                   setStateToOpenModeFromHalfMode();
-                   throw new RuntimeException("Requisição falhou");
-               }
            }
            if(getState() == State.OPEN){
                throw new RuntimeException("Requisição falhou");
            }
        }
+
         private State getState() {
             return this.state;
         }
-
         private void setState(State state){
             this.state = state;
         }
-
         private void setStateToOpenMode(){
                 setState(State.OPEN);
                 this.transactionsFailed.set(0);
                 Runnable runnable = () -> setState(State.HALF_OPEN);
                 executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
-
         private void setStateToOpenModeFromHalfMode(){
             setState(State.OPEN);
             this.alreadyTested.set(false);
@@ -121,11 +94,10 @@ public class CircuitBreaker implements IResilience {
             Runnable runnable = () -> setState(State.HALF_OPEN);
             executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
-
         private void setStateToClosedMode(){
             setState(State.CLOSED);
             this.alreadyTested.set(false);
             this.requestSavedForTestingService.set(null);
-    }
+        }
     }
 
