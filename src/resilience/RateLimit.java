@@ -48,9 +48,10 @@ public class RateLimit implements IResilience{
             this.timeStamp = currentTime;;
         }
         int transactionsCount = transactionsSent.incrementAndGet();
+        System.out.println("transactionsCount" + transactionsCount);
         if (transactionsCount > this.transactionsLimit){
             throw new RuntimeException("O limite de transações chegou. A chamada não será feita");
         }
-        //resilienceService.call(httpRequestAdapter, uri, body);
+        resilienceService.call(httpRequestAdapter, uri, body);
     }
 }
