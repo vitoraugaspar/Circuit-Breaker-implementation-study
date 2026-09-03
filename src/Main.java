@@ -1,17 +1,18 @@
+import adapters.HttpRequestAdapterImpl;
 import resilience.CircuitBreaker;
+import resilience.HttpCall;
 import resilience.RateLimit;
+import resilience.Retry;
+
+import java.net.http.HttpResponse;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 void main() {
-    Short newLimit = 100;
-    CircuitBreaker circuitBreaker = new CircuitBreaker(newLimit);    //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-    // to see how IntelliJ IDEA suggests fixing it.
-    RateLimit rateLimit = new RateLimit(circuitBreaker);
-
+    HttpRequestAdapterImpl httpRequest = new HttpRequestAdapterImpl();
+    HttpCall httpCall = new HttpCall();
+    RateLimit rateLimit = new RateLimit.Builder(httpCall).build();
     for (int i = 1; i <= 5; i++) {
-        //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-        // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-        IO.println("i = " + i);
+
     }
 }

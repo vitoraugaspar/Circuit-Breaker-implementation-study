@@ -1,6 +1,6 @@
 package adapters;
 
-import contracts.IHttpCallAdapter;
+import contracts.IHttpRequestAdapter;
 
 import java.io.IOException;
 import java.net.URI;
@@ -9,7 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-public class HttpRequestAdapterImpl implements IHttpCallAdapter {
+public class HttpRequestAdapterImpl implements IHttpRequestAdapter {
     public HttpRequestAdapterImpl(){
 
     }

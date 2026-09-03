@@ -1,6 +1,7 @@
 package resilience;
 
 import adapters.HttpRequestAdapterImpl;
+import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
 import contracts.State;
 
@@ -24,18 +25,19 @@ public class CircuitBreaker implements IResilience {
     private final AtomicInteger transactionsFailed = new AtomicInteger(0);
     private final AtomicReference<HttpRequest> requestSavedForTestingService = new AtomicReference<>();
     private final AtomicBoolean alreadyTested = new AtomicBoolean(false);
+    private HttpRequestAdapterImpl httpCallAdapter;
+    private final IResilience resilienceService;
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    public CircuitBreaker(Short newLimit){
+    public CircuitBreaker( IResilience resilienceService, Short newLimit){
         if (newLimit != null) {
             this.limitPermittedForFailTransactions = newLimit;
         }
+        this.resilienceService = resilienceService;
     }
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-
-    private final HttpRequestAdapterImpl httpCallAdapter = new HttpRequestAdapterImpl();
-       public void call(String uri, String body) throws IOException, InterruptedException {
+       public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException {
            if(getState() == State.CLOSED){
                try {
                    HttpResponse<String> response = httpCallAdapter.get(uri);
@@ -120,7 +122,7 @@ public class CircuitBreaker implements IResilience {
             executor.schedule(runnable, 30, TimeUnit.SECONDS);
         }
 
-        public void setStateToClosedMode(){
+        private void setStateToClosedMode(){
             setState(State.CLOSED);
             this.alreadyTested.set(false);
             this.requestSavedForTestingService.set(null);

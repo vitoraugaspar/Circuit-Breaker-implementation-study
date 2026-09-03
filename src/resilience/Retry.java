@@ -1,37 +1,64 @@
 package resilience;
 
+import adapters.HttpRequestAdapterImpl;
+import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
 
-public class Retry {
-    Integer tries = 2;
-    Integer periodOfTImeInMilliSeconds = 1000;
-    Integer multiplyTransactionsDelayBy = 2;
-    int newDelayTimeInMilliSeconds;
+import java.net.http.HttpResponse;
 
-    private IResilience circuitBreaker;
-    public Retry(IResilience circuitBreaker){
-        this.circuitBreaker = circuitBreaker;
+public class Retry implements IResilience{
+    private final Integer tries;
+    private final Integer periodOfTImeInMilliSeconds;
+    private final Integer multiplyTransactionsDelayBy;
+    private int newDelayTimeInMilliSeconds;
+    private IResilience resilienceService;
+    private HttpRequestAdapterImpl httpCallAdapter;
+    private Retry(Builder builder) {
+        this.resilienceService = builder.resilienceService;
+        this.tries = builder.tries;
+        this.periodOfTImeInMilliSeconds = builder.periodOfTImeInMilliSeconds;
+        this.multiplyTransactionsDelayBy = builder.multiplyTransactionsDelayBy;
     }
+    public static class Builder {
+        private final IResilience resilienceService;
+        private int tries = 3;
+        private int periodOfTImeInMilliSeconds = 1000;
+        private int multiplyTransactionsDelayBy = 2;
 
-    public void call(Integer tries, Integer periodOfTImeInMilliSeconds, Integer multiplyTransactionsDelayBy){
-        if (tries != null){
+        public Builder(IResilience resilienceService) {
+            this.resilienceService = resilienceService;
+        }
+
+        public Builder tries(int tries) {
             this.tries = tries;
+            return this;
         }
-        if (periodOfTImeInMilliSeconds != null){
-            this.periodOfTImeInMilliSeconds = periodOfTImeInMilliSeconds;
+
+        public Builder periodOfTImeInMilliSeconds(int period) {
+            this.periodOfTImeInMilliSeconds = period;
+            return this;
         }
-        if (multiplyTransactionsDelayBy != null){
-            this.multiplyTransactionsDelayBy = multiplyTransactionsDelayBy;
+
+        public Builder multiplyTransactionsDelayBy(int multiplier) {
+            this.multiplyTransactionsDelayBy = multiplier;
+            return this;
         }
+
+        public Retry build() {
+            return new Retry(this);
+        }
+    }
+    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body){
 
         for (int counter = 1; counter <= this.tries; counter++){
             try {
                 System.out.println("Oi" + newDelayTimeInMilliSeconds);
                 newDelayTimeInMilliSeconds = (int) Math.pow(this.multiplyTransactionsDelayBy ,counter - 1) * periodOfTImeInMilliSeconds;;
                 Thread.sleep(newDelayTimeInMilliSeconds);
+
             }
             catch (InterruptedException e) {
-
+                throw new RuntimeException("Falha ao se comunicar com o servidor");
             }
 
         }
