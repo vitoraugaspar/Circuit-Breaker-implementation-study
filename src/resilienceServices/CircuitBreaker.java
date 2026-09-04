@@ -1,8 +1,12 @@
-package resilience;
+package resilienceServices;
 import adapters.HttpRequestAdapterImpl;
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
 import contracts.State;
+import exceptions.FailRequestsException;
+import exceptions.SendRequestsException;
+import exceptions.UnavailableServiceException;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -35,7 +39,7 @@ public class CircuitBreaker implements IResilience {
         this.resilienceService = resilienceService;
     }
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-       public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException {
+       public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException, SendRequestsException, FailRequestsException, UnavailableServiceException {
            if(getState() == State.CLOSED){
                    HttpResponse<String> response = httpCallAdapter.get(uri);
                    if(response.statusCode() >=400){
@@ -43,14 +47,14 @@ public class CircuitBreaker implements IResilience {
                        if (failures >= limitPermittedForFailTransactions){
                            setStateToOpenMode();
                        }
-                       throw new RuntimeException("Erro ao mandar a requisição");
+                       throw new FailRequestsException();
                    }
 
                }
            if(getState() == State.HALF_OPEN){
                HttpRequest request = requestSavedForTestingService.get();
                if(!alreadyTested.compareAndSet(false, true)){
-                   throw new RuntimeException("Serviço indisponível");
+                   throw new UnavailableServiceException();
                }
                if(request == null ){
                    HttpRequest newRequest = HttpRequest.newBuilder()
@@ -66,12 +70,12 @@ public class CircuitBreaker implements IResilience {
 
                    if(response.statusCode() >=400){
                        setStateToOpenModeFromHalfMode();
-                       throw new RuntimeException("Erro ao mandar a requisição");
+                       throw new SendRequestsException();
                    }
                    setStateToClosedMode();
            }
            if(getState() == State.OPEN){
-               throw new RuntimeException("Requisição falhou");
+               throw new FailRequestsException();
            }
        }
 

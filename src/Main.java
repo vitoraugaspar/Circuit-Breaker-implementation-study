@@ -1,17 +1,19 @@
 import adapters.HttpRequestAdapterImpl;
-import resilience.CircuitBreaker;
-import resilience.HttpCall;
-import resilience.RateLimit;
-import resilience.Retry;
-
-import java.net.http.HttpResponse;
+import contracts.IResilience;
+import exceptions.FailRequestsException;
+import exceptions.SendRequestsException;
+import exceptions.TooManyRequestsException;
+import exceptions.UnavailableServiceException;
+import resilienceServices.HttpCall;
+import resilienceServices.RateLimit;
+import resilienceServices.Retry;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-void main() throws IOException, InterruptedException {
+void main() throws IOException, InterruptedException, TooManyRequestsException, FailRequestsException, SendRequestsException, UnavailableServiceException {
     HttpRequestAdapterImpl httpRequest = new HttpRequestAdapterImpl();
-    HttpCall httpCall = new HttpCall();
-    RateLimit rateLimit = new RateLimit.Builder(httpCall).transactionsLimit(3).build();
-    Retry retry = new Retry.Builder(rateLimit).tries(5).build();
+    IResilience httpCall = new HttpCall();
+    IResilience rateLimit = new RateLimit.Builder(httpCall).transactionsLimit(3).timeDurationInSeconds(2).build();
+    IResilience retry = new Retry.Builder(rateLimit).tries(5).build();
         retry.call(httpRequest, "https://httpbin.org/", null);
 }

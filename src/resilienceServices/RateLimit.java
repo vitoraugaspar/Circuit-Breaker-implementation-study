@@ -1,7 +1,12 @@
-package resilience;
+package resilienceServices;
 import adapters.HttpRequestAdapterImpl;
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
+import exceptions.FailRequestsException;
+import exceptions.SendRequestsException;
+import exceptions.TooManyRequestsException;
+import exceptions.UnavailableServiceException;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,7 +43,7 @@ public class RateLimit implements IResilience{
             return new RateLimit(this);
         }
     }
-    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException {
+    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws IOException, InterruptedException, TooManyRequestsException, SendRequestsException, FailRequestsException, UnavailableServiceException {
         if (timeStamp == null){
             this.timeStamp = Instant.now();
         }
@@ -50,7 +55,7 @@ public class RateLimit implements IResilience{
         int transactionsCount = transactionsSent.incrementAndGet();
         System.out.println("transactionsCount" + transactionsCount);
         if (transactionsCount > this.transactionsLimit){
-            throw new RuntimeException("O limite de transações chegou. A chamada não será feita");
+            throw new TooManyRequestsException();
         }
         resilienceService.call(httpRequestAdapter, uri, body);
     }

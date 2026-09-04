@@ -1,7 +1,11 @@
-package resilience;
+package resilienceServices;
 import adapters.HttpRequestAdapterImpl;
 import contracts.IHttpRequestAdapter;
 import contracts.IResilience;
+import exceptions.FailRequestsException;
+import exceptions.SendRequestsException;
+import exceptions.TooManyRequestsException;
+import exceptions.UnavailableServiceException;
 
 import java.io.IOException;
 
@@ -43,7 +47,7 @@ public class Retry implements IResilience{
             return new Retry(this);
         }
     }
-    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws InterruptedException, IOException {
+    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws InterruptedException, IOException, TooManyRequestsException, SendRequestsException, FailRequestsException, UnavailableServiceException {
         for (int counter = 1; counter <= this.tries; counter++){
                 System.out.println("Oi" + newDelayTimeInMilliSeconds);
                 resilienceService.call(httpRequestAdapter, uri, body);
