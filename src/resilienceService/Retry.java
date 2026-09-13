@@ -1,11 +1,11 @@
-package resilienceServices;
-import adapters.HttpRequestAdapterImpl;
-import contracts.IHttpRequestAdapter;
-import contracts.IResilience;
-import exceptions.FailRequestsException;
-import exceptions.SendRequestsException;
-import exceptions.TooManyRequestsException;
-import exceptions.UnavailableServiceException;
+package resilienceService;
+import adapter.HttpRequestAdapterImpl;
+import contract.IHttpRequestAdapter;
+import contract.IResilience;
+import exception.FailRequestsException;
+import exception.SendRequestsException;
+import exception.TooManyRequestsException;
+import exception.UnavailableServiceException;
 
 import java.io.IOException;
 
@@ -47,12 +47,17 @@ public class Retry implements IResilience{
             return new Retry(this);
         }
     }
-    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) throws InterruptedException, IOException, TooManyRequestsException, SendRequestsException, FailRequestsException, UnavailableServiceException {
+    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) {
         for (int counter = 1; counter <= this.tries; counter++){
                 System.out.println("Oi" + newDelayTimeInMilliSeconds);
                 resilienceService.call(httpRequestAdapter, uri, body);
                 newDelayTimeInMilliSeconds = (int) Math.pow(this.multiplyTransactionsDelayBy ,counter - 1) * periodOfTImeInMilliSeconds;;
-                Thread.sleep(newDelayTimeInMilliSeconds);
+                try {
+                    Thread.sleep(newDelayTimeInMilliSeconds);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+            }
         }
         Thread.currentThread().interrupt();
     }

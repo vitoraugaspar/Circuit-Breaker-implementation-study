@@ -1,5 +1,5 @@
-package adapters;
-import contracts.IHttpRequestAdapter;
+package adapter;
+import contract.IHttpRequestAdapter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -14,14 +14,21 @@ public class HttpRequestAdapterImpl implements IHttpRequestAdapter {
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
-    public HttpResponse<String> get(String uri) throws IOException, InterruptedException{
+    public HttpResponse<String> get(String uri) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(uri))
                 .header("Accept", "application/json")
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build();
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+                try {
+                    return client.send(request, HttpResponse.BodyHandlers.ofString());
+                } catch (IOException e) {
+                    throw new RuntimeException("Erro ao enviar requisição HTTP", e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Requisição interrompida", e);
+        }
 
     }
 }

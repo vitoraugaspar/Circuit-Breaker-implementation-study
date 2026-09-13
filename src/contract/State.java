@@ -1,4 +1,4 @@
-package contracts;
+package contract;
 
 public enum State {
     CLOSED,
