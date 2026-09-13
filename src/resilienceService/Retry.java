@@ -8,6 +8,7 @@ import exception.TooManyRequestsException;
 import exception.UnavailableServiceException;
 
 import java.io.IOException;
+import java.net.http.HttpResponse;
 
 public class Retry implements IResilience{
     private final Integer tries;
@@ -47,18 +48,22 @@ public class Retry implements IResilience{
             return new Retry(this);
         }
     }
-    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) {
+    public HttpResponse<String> call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) {
+        HttpResponse<String> response = null;
         for (int counter = 1; counter <= this.tries; counter++){
-                System.out.println("Oi" + newDelayTimeInMilliSeconds);
-                resilienceService.call(httpRequestAdapter, uri, body);
+                response = resilienceService.call(httpRequestAdapter, uri, body);
+                if(response.statusCode() < 300){
+                    return response;
+                }
                 newDelayTimeInMilliSeconds = (int) Math.pow(this.multiplyTransactionsDelayBy ,counter - 1) * periodOfTImeInMilliSeconds;;
                 try {
                     Thread.sleep(newDelayTimeInMilliSeconds);
-                } catch (InterruptedException e) {
+                } catch (Exception e) {
                     Thread.currentThread().interrupt();
-                    return;
+                    break;
             }
         }
         Thread.currentThread().interrupt();
+        return response;
     }
 }

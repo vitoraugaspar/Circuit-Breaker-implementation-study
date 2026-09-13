@@ -1,23 +1,20 @@
 package resilienceService;
-import adapter.HttpRequestAdapterImpl;
+
 import contract.IHttpRequestAdapter;
 import contract.IResilience;
-import exception.FailRequestsException;
-import exception.SendRequestsException;
 import exception.TooManyRequestsException;
-import exception.UnavailableServiceException;
 
-import java.io.IOException;
+import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RateLimit implements IResilience{
     final private AtomicInteger transactionsSent = new AtomicInteger(0);
-    private int transactionsLimit = 100;
-    private int timeDurationInSeconds = 60;
+    private final Object lock = new Object();
+    private final int transactionsLimit;
+    private final int timeDurationInSeconds;
     private Instant timeStamp;
     private IResilience resilienceService;
-    private HttpRequestAdapterImpl httpCallAdapter;
 
     public RateLimit(Builder builder) {
         this.resilienceService = builder.resilienceService;
@@ -43,20 +40,22 @@ public class RateLimit implements IResilience{
             return new RateLimit(this);
         }
     }
-    public void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) {
+    public HttpResponse<String> call(IHttpRequestAdapter httpRequestAdapter, String uri, String body) {
         if (timeStamp == null){
             this.timeStamp = Instant.now();
         }
-        Instant currentTime = Instant.now();
-        if (currentTime.isAfter(timeStamp.plusSeconds(this.timeDurationInSeconds))){
-            this.transactionsSent.set(0);
-            this.timeStamp = currentTime;;
+        synchronized (lock){
+            Instant currentTime = Instant.now();
+            if (currentTime.isAfter(timeStamp.plusSeconds(this.timeDurationInSeconds))){
+                this.transactionsSent.set(0);
+                this.timeStamp = currentTime;
+            }
         }
         int transactionsCount = transactionsSent.incrementAndGet();
-        System.out.println("transactionsCount" + transactionsCount);
+        System.out.println("transactionsCount " + transactionsCount);
         if (transactionsCount > this.transactionsLimit){
             throw new TooManyRequestsException("O limite de requisições foi atingido");
         }
-        resilienceService.call(httpRequestAdapter, uri, body);
+        return resilienceService.call(httpRequestAdapter, uri, body);
     }
 }

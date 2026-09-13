@@ -5,7 +5,8 @@ import exception.TooManyRequestsException;
 import exception.UnavailableServiceException;
 
 import java.io.IOException;
+import java.net.http.HttpResponse;
 
 public interface IResilience {
-    void call(IHttpRequestAdapter httpRequestAdapter, String uri, String body);
+    HttpResponse<String> call(IHttpRequestAdapter httpRequestAdapter, String uri, String body);
 }

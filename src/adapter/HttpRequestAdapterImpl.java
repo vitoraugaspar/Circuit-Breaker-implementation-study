@@ -24,10 +24,10 @@ public class HttpRequestAdapterImpl implements IHttpRequestAdapter {
                 try {
                     return client.send(request, HttpResponse.BodyHandlers.ofString());
                 } catch (IOException e) {
-                    throw new RuntimeException("Erro ao enviar requisição HTTP", e);
+                    throw new RuntimeException("Erro ao enviar requisição HTTP");
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    throw new RuntimeException("Requisição interrompida", e);
+                    throw new RuntimeException("Requisição interrompida");
         }
 
     }

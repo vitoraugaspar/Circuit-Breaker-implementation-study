@@ -4,6 +4,7 @@ import exception.FailRequestsException;
 import exception.SendRequestsException;
 import exception.TooManyRequestsException;
 import exception.UnavailableServiceException;
+import resilienceService.CircuitBreaker;
 import resilienceService.HttpCall;
 import resilienceService.RateLimit;
 import resilienceService.Retry;
